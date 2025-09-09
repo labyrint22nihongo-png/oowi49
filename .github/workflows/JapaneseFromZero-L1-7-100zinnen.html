@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japanse Quiz</title>
+    <!-- Tailwind CSS laden -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 640px;
+            width: 100%;
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .button-group {
+            display: grid;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .quiz-button {
+            padding: 1rem 1.5rem;
+            background-color: #e5e7eb;
+            color: #1f2937;
+            font-weight: 600;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-align: center;
+            border: 2px solid transparent;
+        }
+        .quiz-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .quiz-button.correct {
+            background-color: #34d399;
+            color: white;
+        }
+        .quiz-button.incorrect {
+            background-color: #f87171;
+            color: white;
+        }
+        .quiz-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+            transform: none;
+            box-shadow: none;
+        }
+        #feedback-message {
+            margin-top: 1.5rem;
+            font-weight: 600;
+            min-height: 3rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #romaji-sentence {
+            margin-top: 1.5rem;
+        }
+        .result-screen {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .final-message {
+            display: none;
+            flex-direction: row;
+            justify-content: center; /* Gewijzigd van space-between naar center */
+            align-items: center;
+            gap: 1rem; /* Nieuw: voegt ruimte toe tussen de elementen */
+        }
+        .final-message-text {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            flex-grow: 1; /* Wijziging: laat de tekst de beschikbare ruimte innemen */
+        }
+        .emoji {
+            font-size: 8rem; /* Grotere emoji's voor betere zichtbaarheid op mobiel */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+<div class="container">
+    <h1 class="text-3xl font-bold mb-2 text-gray-800">Japanse Quiz</h1>
+    <p id="score-display" class="text-xl font-semibold text-gray-600 mb-8">Score: 0/0</p>
+
+    <!-- Quiz Vraag Scherm -->
+    <div id="quiz-container">
+        <div class="mb-8">
+            <p class="text-3xl font-bold text-blue-600 mb-2" id="japanese-sentence">...</p>
+        </div>
+        <div id="options-container" class="button-group">
+            <!-- Knoppen worden hier dynamisch toegevoegd -->
+        </div>
+        <div id="feedback-message" class="text-lg"></div>
+        <p class="text-lg text-gray-500" id="romaji-sentence">...</p>
+        <button id="next-button" class="mt-8 px-8 py-3 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition duration-300 transform hover:scale-105" style="display: none;">
+            Volgende
+        </button>
+    </div>
+
+    <!-- Resultaat Scherm -->
+    <div id="result-screen" class="result-screen">
+        <h2 class="text-2xl font-bold mb-4">Quiz voltooid!</h2>
+        <p id="final-score-message" class="text-xl mb-6">Je hebt X van de Y vragen correct beantwoord.</p>
+        <p class="mb-6">Wil je nog een keer oefenen?</p>
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
+            <button id="restart-button" class="px-8 py-3 bg-green-600 text-white font-bold rounded-full hover:bg-green-700 transition duration-300 transform hover:scale-105">
+                Nog een ronde!
+            </button>
+            <button id="stop-button" class="px-8 py-3 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition duration-300 transform hover:scale-105">
+                Stop
+            </button>
+        </div>
+    </div>
+
+    <!-- Eindbericht Scherm -->
+    <div id="final-message-screen" class="final-message">
+        <span class="emoji" role="img" aria-label="Een Japans kasteel">🏯</span>
+        <div class="final-message-text">
+            <p class="text-2xl font-bold text-gray-800">Bedankt. Tot de volgende keer!</p>
+            <p class="text-xl font-semibold text-gray-600 mt-2">ありがとうございます。また今度！</p>
+        </div>
+        <span class="emoji" role="img" aria-label="Een Japanse kersenbloesem">🌸</span>
+    </div>
+</div>
+
+<script>
+    // Quiz vragen data
+    const allQuestions = [
+        // Oorspronkelijke vragen
+        { japanese: "なにですか。", romaji: "nani desu ka.", dutchCorrect: "Wat is het?", dutchOptions: ["Hoe gaat het?", "Waar ben je?", "Wie ben je?"] },
+        { japanese: "はい、わかります。", romaji: "hai, wakarimasu.", dutchCorrect: "Ja, ik begrijp het.", dutchOptions: ["Nee, ik begrijp het.", "Nee, ik begrijp het niet.", "Ja, ik weet het."] },
+        { japanese: "いいえ、わかりません。", romaji: "iie, wakarimasen.", dutchCorrect: "Nee, ik begrijp het niet.", dutchOptions: ["Ja, ik begrijp het.", "Ja, ik weet het.", "Nee, dat is het niet."] },
+        { japanese: "これは犬です。", romaji: "kore wa inu desu.", dutchCorrect: "Dit is een hond.", dutchOptions: ["Dat is een kat.", "Wat is het?", "Dit is een vis."] },
+        { japanese: "あれは猫ですか。", romaji: "are wa neko desu ka.", dutchCorrect: "Is dat een kat?", dutchOptions: ["Is dit een hond?", "Dat is een kat.", "Wat is dat?"] },
+        { japanese: "あなたは田中さんです。", romaji: "anata wa Tanaka-san desu.", dutchCorrect: "Jij bent meneer Tanaka.", dutchOptions: ["Hij is een leerling.", "Jij bent mevrouw Kobayahsi.", "Wat is je naam?"] },
+        { japanese: "それは何ですか。", romaji: "sore wa nan desu ka.", dutchCorrect: "Wat is dat?", dutchOptions: ["Dit is dat.", "Wat is dit?", "Dat is het niet."] },
+        { japanese: "あなたの名前は何ですか。", romaji: "anata no namae wa nan desu ka.", dutchCorrect: "Wat is je naam?", dutchOptions: ["Waar is je naam?", "Wie ben jij?", "Mijn naam is..."] },
+        { japanese: "はい、そうです。", romaji: "hai, sou desu.", dutchCorrect: "Ja, dat klopt.", dutchOptions: ["Nee, dat klopt niet.", "Dat is een kat.", "Ik begrijp het."] },
+        { japanese: "いいえ、そうではありません。", romaji: "iie, sou de wa arimasen.", dutchCorrect: "Nee, dat klopt niet.", dutchOptions: ["Ja, dat klopt.", "Dit is niet correct.", "Dat is het niet."] },
+        { japanese: "これは本です。", romaji: "kore wa hon desu.", dutchCorrect: "Dit is een boek.", dutchOptions: ["Dat is een auto.", "Dit is een auto.", "Is dit een pen?"] },
+        { japanese: "いいえ、本ではありません。", romaji: "iie, hon de wa arimasen.", dutchCorrect: "Nee, het is geen boek.", dutchOptions: ["Ja, het is een boek.", "Dat is een boek.", "Het is niet correct."] },
+        { japanese: "あなたは学生ですか。", romaji: "anata wa gakusei desu ka.", dutchCorrect: "Ben je een student?", dutchOptions: ["Ben je een leraar?", "Wie is een student?", "Wat is een student?"] },
+        { japanese: "わたしは先生です。", romaji: "watashi wa sensei desu.", dutchCorrect: "Ik ben een leraar.", dutchOptions: ["Zij is een student.", "Ik ben een student.", "Jij bent een leraar."] },
+        { japanese: "わたしは学生ではありません。", romaji: "watashi wa gakusei de wa arimasen.", dutchCorrect: "Ik ben geen student.", dutchOptions: ["Ik ben een student.", "Jij bent geen student.", "Hij is een leraar."] },
+
+        // Vragen uit 'Japanese from Zero!' lessen
+        { japanese: "これは何ですか。", romaji: "kore wa nan desu ka.", dutchCorrect: "Wat is dit?", dutchOptions: ["Wat is dat?", "Is dit een hond?", "Wie is dat?"] },
+        { japanese: "あれはだれですか。", romaji: "are wa dare desu ka.", dutchCorrect: "Wie is dat?", dutchOptions: ["Wat is dit?", "Waar is dat?", "Is dat een kat?"] },
+        { japanese: "あなたは誰ですか。", romaji: "anata wa dare desu ka.", dutchCorrect: "Wie ben jij?", dutchOptions: ["Wat is je naam?", "Waar ben je?", "Ben je een student?"] },
+        { japanese: "この本はだれのですか。", romaji: "kono hon wa dare no desu ka.", dutchCorrect: "Van wie is dit boek?", dutchOptions: ["Is dit boek van jou?", "Wat is dit boek?", "Wie is de auteur van dit boek?"] },
+        { japanese: "これはわたしのペンです。", romaji: "kore wa watashi no pen desu.", dutchCorrect: "Dit is mijn pen.", dutchOptions: ["Die pen is van mij.", "Ik heb een pen.", "Dit is geen pen."] },
+        { japanese: "その車はわたしのものです。", romaji: "sono kuruma wa watashi no mono desu.", dutchCorrect: "Die auto is van mij.", dutchOptions: ["Dit is mijn auto.", "Ik heb een auto.", "Is die auto van jou?"] },
+        { japanese: "その本はだれのですか。", romaji: "sono hon wa dare no desu ka.", dutchCorrect: "Van wie is dat boek?", dutchOptions: ["Is dat jouw boek?", "Wat is dat boek?", "Wie is die persoon?"] },
+        { japanese: "この本はあなたのですか。", romaji: "kono hon wa anata no desu ka.", dutchCorrect: "Is dit boek van jou?", dutchOptions: ["Dit boek is van mij.", "Dit is een boek van jou.", "Wat is dit boek?"] },
+        { japanese: "それは猫のですか。", romaji: "sore wa neko no desu ka.", dutchCorrect: "Is dat van de kat?", dutchOptions: ["Is dat een kat?", "De kat is daar.", "De kat heeft dat."] },
+        { japanese: "いいえ、ちがいます。", romaji: "iie, chigaimasu.", dutchCorrect: "Nee, dat is niet juist.", dutchOptions: ["Nee, ik begrijp het niet.", "Ja, dat klopt.", "Nee, dat is niet dat."] },
+        { japanese: "このいぬはわたしのですか。", romaji: "kono inu wa watashi no desu ka.", dutchCorrect: "Is deze hond van mij?", dutchOptions: ["Deze hond is van jou.", "Dit is geen hond.", "Ik ben een hond."] },
+        { japanese: "this shirt is yours.", romaji: "kono shatsu wa anata no mono desu.", dutchCorrect: "Dit shirt is van jou.", dutchOptions: ["Is dit shirt van mij?", "Dit is een mooi shirt.", "Ik heb dit shirt gekocht."] },
+        { japanese: "このかばんはだれののですか。", romaji: "kono kaban wa dare no desu ka.", dutchCorrect: "Van wie is deze tas?", dutchOptions: ["Is dit jouw tas?", "Is dat een tas?", "Dit is een tas."] },
+        { japanese: "あのくるまはだれののですか。", romaji: "ano kuruma wa dare no desu ka.", dutchCorrect: "Van wie is die auto daar?", dutchOptions: ["Is die auto van jou?", "Wat is die auto?", "Is dat een auto?"] },
+        { japanese: "このとけいはすきです。", romaji: "kono tokei wa suki desu.", dutchCorrect: "Ik vind dit horloge leuk.", dutchOptions: ["Ik vind dat horloge niet leuk.", "Dit is een mooi horloge.", "Ik heb een horloge."] },
+        { japanese: "あの本はすきではありません。", romaji: "ano hon wa suki de wa arimasen.", dutchCorrect: "Ik vind dat boek daar niet leuk.", dutchOptions: ["Ik vind dit boek leuk.", "Dat is een leuk boek.", "Dat boek is niet van mij."] },
+        { japanese: "なにが好きですか。", romaji: "nani ga suki desu ka.", dutchCorrect: "Waar houd je van?", dutchOptions: ["Wat is dit?", "Wat is je favoriete kleur?", "Wat heb je nodig?"] },
+        { japanese: "どんなものが好きですか。", romaji: "donna mono ga suki desu ka.", dutchCorrect: "Van wat voor dingen houd je?", dutchOptions: ["Wat is dit ding?", "Wat vind je leuk aan dit ding?", "Wat zijn dat voor dingen?"] },
+        { japanese: "私はたべものが好きです。", romaji: "watashi wa tabemono ga suki desu.", dutchCorrect: "Ik houd van eten.", dutchOptions: ["Ik houd niet van eten.", "Eten is goed.", "Ik wil eten."] },
+        { japanese: "あなたは魚が好きですか。", romaji: "anata wa sakana ga suki desu ka.", dutchCorrect: "Houd je van vis?", dutchOptions: ["Vis is lekker.", "Wat is vis?", "Ik houd van vis."] },
+        { japanese: "はい、すきです。", romaji: "hai, suki desu.", dutchCorrect: "Ja, ik vind het leuk.", dutchOptions: ["Nee, ik vind het niet leuk.", "Ja, dat is het.", "Nee, ik heb het niet."] },
+        { japanese: "いいえ、すきではありません。", romaji: "iie, suki de wa arimasen.", dutchCorrect: "Nee, ik vind het niet leuk.", dutchOptions: ["Ja, ik vind het leuk.", "Nee, ik begrijp het niet.", "Ik weet het niet."] },
+        { japanese: "あなたの電話番号は何番ですか。", romaji: "anata no denwa bangou wa nanban desu ka.", dutchCorrect: "Wat is je telefoonnummer?", dutchOptions: ["Waar is je telefoon?", "Wat is je nummer?", "Hoe oud ben je?"] },
+        { japanese: "これは私の電話番号です。", romaji: "kore wa watashi no denwa bangou desu.", dutchCorrect: "Dit is mijn telefoonnummer.", dutchOptions: ["Wat is je telefoonnummer?", "Mijn telefoon is hier.", "Ik heb een telefoon."] },
+        { japanese: "これは何ですか。", romaji: "kore wa nan desu ka.", dutchCorrect: "Wat is dit?", dutchOptions: ["Wat is dat?", "Is dit van jou?", "Wat is het?"] },
+        { japanese: "あれは誰ですか。", romaji: "are wa dare desu ka.", dutchCorrect: "Wie is dat?", dutchOptions: ["Wat is dat?", "Waar is hij?", "Is dat een hond?"] },
+        { japanese: "この本は誰のですか。", romaji: "kono hon wa dare no desu ka.", dutchCorrect: "Van wie is dit boek?", dutchOptions: ["Wat is dit boek?", "Is dit jouw boek?", "Dit is een boek."] },
+        { japanese: "あなたは学生ですか。", romaji: "anata wa gakusei desu ka.", dutchCorrect: "Ben je een student?", dutchOptions: ["Ben je een leraar?", "Wat is een student?", "Hoe heet je?"] },
+        { japanese: "私は先生です。", romaji: "watashi wa sensei desu.", dutchCorrect: "Ik ben een leraar.", dutchOptions: ["Ik ben geen leraar.", "Ik ben een student.", "Jij bent een leraar."] },
+        { japanese: "これは時計です。", romaji: "kore wa tokei desu.", dutchCorrect: "Dit is een horloge.", dutchOptions: ["Dat is een horloge.", "Ik wil een horloge.", "Is dit een horloge?"] },
+        { japanese: "あれは車です。", romaji: "are wa kuruma desu.", dutchCorrect: "Dat is een auto.", dutchOptions: ["Dit is een auto.", "Ik heb een auto.", "Van wie is die auto?"] },
+        { japanese: "これはあなたのですか。", romaji: "kore wa anata no desu ka.", dutchCorrect: "Is dit van jou?", dutchOptions: ["Is dit van mij?", "Wie ben je?", "Wat is dat?"] },
+        { japanese: "いいえ、ちがいます。私のじゃありません。", romaji: "iie, chigaimasu. watashi no ja arimasen.", dutchCorrect: "Nee, dat is niet juist. Het is niet van mij.", dutchOptions: ["Ja, het is van mij.", "Nee, ik begrijp het niet.", "Nee, het is van iemand anders."] },
+        { japanese: "このかばんは私のです。", romaji: "kono kaban wa watashi no desu.", dutchCorrect: "Deze tas is van mij.", dutchOptions: ["Deze tas is van jou.", "Dit is mijn tas.", "Van wie is die tas?"] },
+        { japanese: "この本はあなたの本ですか。", romaji: "kono hon wa anata no hon desu ka.", dutchCorrect: "Is dit boek jouw boek?", dutchOptions: ["Is dit van jou?", "Wat is dit boek?", "Is dat jouw boek?"] },
+        { japanese: "はい、そうです。私の本です。", romaji: "hai, sou desu. watashi no hon desu.", dutchCorrect: "Ja, dat klopt. Het is mijn boek.", dutchOptions: ["Nee, het is mijn boek niet.", "Ja, het is jouw boek.", "Nee, dat is niet juist."] },
+        { japanese: "あれはあなたの車ですか。", romaji: "are wa anata no kuruma desu ka.", dutchCorrect: "Is die auto van jou?", dutchOptions: ["Is dat een auto?", "Wat is die auto?", "Is die auto van mij?"] },
+        { japanese: "これは犬です。", romaji: "kore wa inu desu.", dutchCorrect: "Dit is een hond.", dutchOptions: ["Dat is een kat.", "Wat is het?", "Dit is een vis."] },
+        { japanese: "それは猫ですか。", romaji: "sore wa neko desu ka.", dutchCorrect: "Is dat een kat?", dutchOptions: ["Is dit een hond?", "Dat is een kat.", "Wat is dat?"] },
+        { japanese: "あれはペンです。", romaji: "are wa pen desu.", dutchCorrect: "Dat is een pen.", dutchOptions: ["Dit is een pen.", "Van wie is die pen?", "Is dat een potlood?"] },
+        { japanese: "この人は田中さんです。", romaji: "kono hito wa Tanaka-san desu.", dutchCorrect: "Deze persoon is meneer Tanaka.", dutchOptions: ["Jij bent meneer Tanaka.", "Wie is meneer Tanaka?", "Meneer Tanaka is hier."] },
+        { japanese: "あの人は学生です。", romaji: "ano hito wa gakusei desu.", dutchCorrect: "Die persoon is een student.", dutchOptions: ["Die student is hier.", "Ben je een student?", "Ik ben een student."] },
+        { japanese: "これはあなたの鉛筆ですか。", romaji: "kore wa anata no enpitsu desu ka.", dutchCorrect: "Is dit jouw potlood?", dutchOptions: ["Wat is een potlood?", "Ik heb een potlood.", "Is dit een potlood?"] },
+        { japanese: "私の名前はアリスです。", romaji: "watashi no namae wa Arisu desu.", dutchCorrect: "Mijn naam is Alice.", dutchOptions: ["Wat is je naam?", "Jouw naam is Alice.", "Ik ben Alice."] },
+        { japanese: "はい、わかります。", romaji: "hai, wakarimasu.", dutchCorrect: "Ja, ik begrijp het.", dutchOptions: ["Nee, ik begrijp het niet.", "Ja, ik weet het.", "Wat is het?"] },
+        { japanese: "私は猫が好きです。", romaji: "watashi wa neko ga suki desu.", dutchCorrect: "Ik houd van katten.", dutchOptions: ["Ik houd niet van katten.", "Mijn kat is leuk.", "Ik heb een kat."] },
+        { japanese: "私はりんごが好きです。", romaji: "watashi wa ringo ga suki desu.", dutchCorrect: "Ik houd van appels.", dutchOptions: ["Ik wil een appel.", "Appels zijn lekker.", "Ik houd niet van appels."] },
+        { japanese: "これは私のカメラです。", romaji: "kore wa watashi no kamera desu.", dutchCorrect: "Dit is mijn camera.", dutchOptions: ["Dit is een camera.", "Is dit jouw camera?", "Ik wil een camera."] },
+        { japanese: "あなたの仕事は何ですか。", romaji: "anata no shigoto wa nan desu ka.", dutchCorrect: "Wat is je werk?", dutchOptions: ["Wat is je hobby?", "Wat doe je?", "Waar werk je?"] },
+        { japanese: "私は医者です。", romaji: "watashi wa isha desu.", dutchCorrect: "Ik ben een dokter.", dutchOptions: ["Ik ben geen dokter.", "Ik wil dokter worden.", "Zij is een dokter."] },
+        { japanese: "彼は医者ではありません。", romaji: "kare wa isha de wa arimasen.", dutchCorrect: "Hij is geen dokter.", dutchOptions: ["Hij is een dokter.", "Hij is een leraar.", "Ik ben een dokter."] },
+        { japanese: "このペンはだれのですか。", romaji: "kono pen wa dare no desu ka.", dutchCorrect: "Van wie is deze pen?", dutchOptions: ["Wat is deze pen?", "Is dit jouw pen?", "Dit is een pen."] },
+        { japanese: "このりんごは美味しいです。", romaji: "kono ringo wa oishii desu.", dutchCorrect: "Deze appel is lekker.", dutchOptions: ["Ik vind deze appel lekker.", "Appels zijn lekker.", "Ik wil een appel."] },
+        { japanese: "その犬はかわいいです。", romaji: "sono inu wa kawaii desu.", dutchCorrect: "Die hond is schattig.", dutchOptions: ["Is die hond schattig?", "Die hond is van mij.", "Ik houd van die hond."] },
+        { japanese: "あの猫は大きいです。", romaji: "ano neko wa ookii desu.", dutchCorrect: "Die kat daar is groot.", dutchOptions: ["Die kat is klein.", "Ik houd van die kat.", "Is die kat groot?"] },
+
+        // Nieuwe vragen over kleuren
+        { japanese: "これは赤いです。", romaji: "kore wa akai desu.", dutchCorrect: "Dit is rood.", dutchOptions: ["Dit is blauw.", "Deze is geel.", "Dat is rood."] },
+        { japanese: "その車は黒いです。", romaji: "sono kuruma wa kuroi desu.", dutchCorrect: "Die auto is zwart.", dutchOptions: ["Die auto is wit.", "Dit is een zwarte auto.", "Ik heb een zwarte auto."] },
+        { japanese: "あの本は白いです。", romaji: "ano hon wa shiroi desu.", dutchCorrect: "Dat boek daar is wit.", dutchOptions: ["Dat boek is zwart.", "Dit boek is wit.", "Het is geen wit boek."] },
+        { japanese: "あなたのカメラは青いです。", romaji: "anata no kamera wa aoi desu.", dutchCorrect: "Jouw camera is blauw.", dutchOptions: ["Jouw camera is groen.", "Is jouw camera blauw?", "Ik heb een blauwe camera."] },
+        { japanese: "この鉛筆は緑です。", romaji: "kono enpitsu wa midori desu.", dutchCorrect: "Dit potlood is groen.", dutchOptions: ["Dit potlood is geel.", "Dit is een groen potlood.", "Het potlood is niet groen."] },
+        { japanese: "何色が好きですか。", romaji: "naniiro ga suki desu ka.", dutchCorrect: "Welke kleur vind je leuk?", dutchOptions: ["Wat is dit voor kleur?", "Wat is je favoriete kleur?", "Houd je van kleuren?"] },
+        { japanese: "私は黄色が好きです。", romaji: "watashi wa kiiro ga suki desu.", dutchCorrect: "Ik houd van geel.", dutchOptions: ["Ik houd van rood.", "Geel is een mooie kleur.", "Ik houd niet van geel."] },
+
+        // Nieuwe vragen over eten en drinken
+        { japanese: "私はパンを食べます。", romaji: "watashi wa pan o tabemasu.", dutchCorrect: "Ik eet brood.", dutchOptions: ["Ik eet rijst.", "Ik eet brood niet.", "Ik koop brood."] },
+        { japanese: "あなたは魚を食べますか。", romaji: "anata wa sakana o tabemasu ka.", dutchCorrect: "Eet jij vis?", dutchOptions: ["Houd je van vis?", "Eet je vlees?", "Vis is lekker."] },
+        { japanese: "私は肉が好きです。", romaji: "watashi wa niku ga suki desu.", dutchCorrect: "Ik houd van vlees.", dutchOptions: ["Ik houd niet van vlees.", "Ik eet vlees.", "Vlees is lekker."] },
+        { japanese: "この食べ物は美味しいです。", romaji: "kono tabemono wa oishii desu.", dutchCorrect: "Dit eten is lekker.", dutchOptions: ["Dat eten is vies.", "Ik wil dit eten.", "Is dit eten lekker?"] },
+        { japanese: "私は水を飲みます。", romaji: "watashi wa mizu o nomimasu.", dutchCorrect: "Ik drink water.", dutchOptions: ["Ik drink sap.", "Ik wil water.", "Ik drink geen water."] },
+        { japanese: "このスープは熱いです。", romaji: "kono suupu wa atsui desu.", dutchCorrect: "Deze soep is heet.", dutchOptions: ["Deze soep is koud.", "De soep is lekker.", "Ik wil soep."] },
+        { japanese: "私はご飯を食べません。", romaji: "watashi wa gohan o tabemasen.", dutchCorrect: "Ik eet geen rijst.", dutchOptions: ["Ik eet rijst.", "Ik drink geen rijst.", "Ik kook geen rijst."] },
+        { japanese: "この牛乳は冷たいです。", romaji: "kono gyuunyuu wa tsumetai desu.", dutchCorrect: "Deze melk is koud.", dutchOptions: ["Deze melk is warm.", "Melk is lekker.", "Ik wil melk drinken."] },
+        { japanese: "私はお腹が空いています。", romaji: "watashi wa onaka ga suite imasu.", dutchCorrect: "Ik heb honger.", dutchOptions: ["Ik heb dorst.", "Ik ben moe.", "Ik ben ziek."] },
+        { japanese: "喉が渇いています。", romaji: "nodo ga kawaite imasu.", dutchCorrect: "Ik heb dorst.", dutchOptions: ["Ik heb honger.", "Ik ben moe.", "Ik ben koud."] },
+        { japanese: "この飲み物はまずいです。", romaji: "kono nomimono wa mazui desu.", dutchCorrect: "Dit drankje is vies.", dutchOptions: ["Dit drankje is lekker.", "Dit eten is vies.", "Ik wil dit drankje."] },
+        { japanese: "何か飲みたいです。", romaji: "nani ka nomitai desu.", dutchCorrect: "Ik wil iets drinken.", dutchOptions: ["Ik wil iets eten.", "Ik wil water drinken.", "Ik ben dorstig."] },
+        { japanese: "お会計をお願いします。", romaji: "O-kaikei o onegai shimasu.", dutchCorrect: "De rekening, alstublieft.", dutchOptions: ["Ik wil betalen.", "Waar is de kassa?", "Help me, alstublieft."] },
+        { japanese: "これはおいしくないです。", romaji: "Kore wa oishiku nai desu.", dutchCorrect: "Dit is niet lekker.", dutchOptions: ["Dit is lekker.", "Dit is een vis.", "Dat is niet lekker."] },
+        { japanese: "何かを食べたいですか。", romaji: "Nani o tabetai desu ka.", dutchCorrect: "Wat wil je eten?", dutchOptions: ["Wat wil je drinken?", "Eet je dat?", "Waar wil je heen?"] },
+        // Nieuwe vragen met suki, daisuki, kirai en daikirai
+        { japanese: "私は犬が大好きです。", romaji: "watashi wa inu ga daisuki desu.", dutchCorrect: "Ik ben dol op honden.", dutchOptions: ["Ik vind honden leuk.", "Ik vind honden niet leuk.", "Ik heb een hekel aan honden."] },
+        { japanese: "あなたは猫が嫌いですか。", romaji: "anata wa neko ga kirai desu ka.", dutchCorrect: "Houd je niet van katten?", dutchOptions: ["Houd je van katten?", "Ben je dol op katten?", "Ik houd van katten."] },
+        { japanese: "私は日本語が大好きです。", romaji: "watashi wa Nihongo ga daisuki desu.", dutchCorrect: "Ik ben dol op Japans.", dutchOptions: ["Ik vind Japans leuk.", "Ik houd niet van Japans.", "Ik leer Japans."] },
+        { japanese: "野菜が嫌いです。", romaji: "yasai ga kirai desu.", dutchCorrect: "Ik houd niet van groenten.", dutchOptions: ["Ik ben dol op groenten.", "Ik vind groenten lekker.", "Groenten zijn vies."] },
+        { japanese: "この映画が嫌いです。", romaji: "kono eiga wa kirai desu.", dutchCorrect: "Ik vind deze film niet leuk.", dutchOptions: ["Ik ben dol op deze film.", "Deze film is leuk.", "Ik heb een hekel aan films."] },
+        { japanese: "納豆は大好きです。", romaji: "nattou wa daisuki desu.", dutchCorrect: "Ik ben dol op natto.", dutchOptions: ["Ik vind natto niet lekker.", "Natto is lekker.", "Ik houd niet van natto."] },
+        { japanese: "私は雨が嫌いです。", romaji: "watashi wa ame ga kirai desu.", dutchCorrect: "Ik houd niet van regen.", dutchOptions: ["Ik houd van regen.", "Ik ben dol op regen.", "Het regent."] },
+        { japanese: "私は辛い食べ物が大嫌いです。", romaji: "watashi wa karai tabemono ga daikirai desu.", dutchCorrect: "Ik heb een hekel aan pittig eten.", dutchOptions: ["Ik ben dol op pittig eten.", "Ik vind pittig eten lekker.", "Ik houd niet van pittig eten."] },
+        { japanese: "数学が大嫌いです。", romaji: "suugaku ga daikirai desu.", dutchCorrect: "Ik heb een hekel aan wiskunde.", dutchOptions: ["Ik ben dol op wiskunde.", "Ik vind wiskunde niet leuk.", "Wiskunde is moeilijk."] },
+        { japanese: "私は甘いものが大好きです。", romaji: "watashi wa amai mono ga daisuki desu.", dutchCorrect: "Ik ben dol op zoete dingen.", dutchOptions: ["Ik houd van zoete dingen.", "Ik houd niet van zoete dingen.", "Zoete dingen zijn lekker."] }
+    ];
+
+    let currentQuestionIndex = 0;
+    let score = 0;
+    const totalQuestionsPerRound = 10;
+    let currentRoundQuestions = [];
+
+    const quizContainerEl = document.getElementById('quiz-container');
+    const resultScreenEl = document.getElementById('result-screen');
+    const finalMessageScreenEl = document.getElementById('final-message-screen');
+    
+    const japaneseSentenceEl = document.getElementById('japanese-sentence');
+    const romajiSentenceEl = document.getElementById('romaji-sentence');
+    const optionsContainerEl = document.getElementById('options-container');
+    const scoreDisplayEl = document.getElementById('score-display');
+    const feedbackMessageEl = document.getElementById('feedback-message');
+    const nextButtonEl = document.getElementById('next-button');
+    const finalScoreMessageEl = document.getElementById('final-score-message');
+    const restartButtonEl = document.getElementById('restart-button');
+    const stopButtonEl = document.getElementById('stop-button');
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    function startNewRound() {
+        // Schud alle vragen en selecteer de eerste 10
+        shuffleArray(allQuestions);
+        currentRoundQuestions = allQuestions.slice(0, totalQuestionsPerRound);
+        
+        currentQuestionIndex = 0;
+        score = 0;
+        
+        // Toon de quiz en verberg de resultaat- en eindschermen
+        quizContainerEl.style.display = 'block';
+        resultScreenEl.style.display = 'none';
+        finalMessageScreenEl.style.display = 'none';
+
+        loadQuestion();
+        updateScoreDisplay();
+    }
+
+    function loadQuestion() {
+        if (currentQuestionIndex >= totalQuestionsPerRound) {
+            showResultScreen();
+            return;
+        }
+
+        const currentQuestion = currentRoundQuestions[currentQuestionIndex];
+        const options = [...currentQuestion.dutchOptions, currentQuestion.dutchCorrect];
+        shuffleArray(options);
+
+        japaneseSentenceEl.textContent = currentQuestion.japanese;
+        romajiSentenceEl.textContent = currentQuestion.romaji;
+        optionsContainerEl.innerHTML = '';
+        feedbackMessageEl.textContent = '';
+        nextButtonEl.style.display = 'none';
+
+        options.forEach(option => {
+            const button = document.createElement('button');
+            button.textContent = option;
+            button.classList.add('quiz-button');
+            button.addEventListener('click', () => checkAnswer(option, currentQuestion.dutchCorrect, button));
+            optionsContainerEl.appendChild(button);
+        });
+    }
+
+    function checkAnswer(selectedOption, correctOption, button) {
+        const isCorrect = selectedOption === correctOption;
+        
+        if (isCorrect) {
+            score++;
+            feedbackMessageEl.textContent = 'Correct!';
+            feedbackMessageEl.classList.add('text-green-600');
+            button.classList.add('correct');
+        } else {
+            feedbackMessageEl.textContent = `Niet correct. Het juiste antwoord is: "${correctOption}"`;
+            feedbackMessageEl.classList.add('text-red-600');
+            button.classList.add('incorrect');
+        }
+
+        // Alle knoppen uitschakelen
+        document.querySelectorAll('.quiz-button').forEach(btn => btn.disabled = true);
+        
+        // De 'Volgende' knop weergeven
+        nextButtonEl.style.display = 'block';
+
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        scoreDisplayEl.textContent = `Score: ${score}/${currentQuestionIndex + 1}`;
+    }
+
+    function showResultScreen() {
+        quizContainerEl.style.display = 'none';
+        resultScreenEl.style.display = 'flex';
+        finalScoreMessageEl.textContent = `Je hebt ${score} van de ${totalQuestionsPerRound} vragen correct beantwoord.`;
+    }
+
+    function showFinalMessage() {
+        quizContainerEl.style.display = 'none';
+        resultScreenEl.style.display = 'none';
+        finalMessageScreenEl.style.display = 'flex';
+    }
+
+    // Event Listeners
+    nextButtonEl.addEventListener('click', () => {
+        currentQuestionIndex++;
+        feedbackMessageEl.classList.remove('text-green-600', 'text-red-600');
+        loadQuestion();
+    });
+
+    restartButtonEl.addEventListener('click', startNewRound);
+    stopButtonEl.addEventListener('click', showFinalMessage);
+
+    // Start de quiz bij het laden van de pagina
+    window.onload = startNewRound;
+</script>
+
+</body>
+</html>
+
